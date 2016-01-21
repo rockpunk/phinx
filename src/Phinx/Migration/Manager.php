@@ -546,7 +546,7 @@ class Manager
         $seeds = $config->getSeeds($adapter);
         $seed_table_names = array_map(function ($s) {return $s->getName();}, $seeds);
 
-        
+
         $args = array_map(function ($list) { $c=count($list); $s=$c==1?'':'s'; return array($c, $s); }, array($tables, $seeds));
         $output->writeln(
             sprintf("Schema dump includes %d table%s (%d seed table%s)",
@@ -567,12 +567,12 @@ class Manager
                 $foreign_keys[] = $fk;
                 if (preg_match('/REFERENCES [`"\']?(\w+)\b/i', $fk, $m)) {
                     # this $table depends on the reference table to be inserted into first
-                    # set the seed table dependency 
+                    # set the seed table dependency
                     #
                     # only do this if not a self-circular dependency
                     if ($table->getName()!=$m[1]) {
 
-                        // if both the table and the foreign key table are in the seed 
+                        // if both the table and the foreign key table are in the seed
                         // list, set the dependency, otherwise we're wasting time
                         if (static::listContainsAll($seed_table_names, $table->getName(), $m[1])) {
                             $ret = static::getSeed($table->getName(), $seeds)
@@ -592,11 +592,13 @@ class Manager
             fwrite($f, "\n");
         }
 
+        // start a new transaction to speed up inserts
+        fwrite($f, "START TRANSACTION;\n");
 
         $processed = array();
 
         // this will have an infinite loop if we have circular dependency.
-        // A -> B -> C -> A, or A->A. These are explicitly detected before hand and 
+        // A -> B -> C -> A, or A->A. These are explicitly detected before hand and
         // removed. so we *shouldn't* loop forever. just in case, we'll count
         $n = 0;
         while (count($processed) != count($seeds)) {
@@ -631,6 +633,8 @@ class Manager
                 }
             }
         }
+        // commit all the inserts in the end
+        fwrite($f, "COMMIT;\n");
     }
 
     private static function getSeed($name, &$seeds)
